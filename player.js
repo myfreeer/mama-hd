@@ -264,17 +264,18 @@ module.exports = () => {
 
 	if(location.href.match("bilibili.com/video")){
 		document.getElementById('bofqi').innerHTML='';
-		document.getElementById('bofqi').appendChild(div);
+		console.log(document.getElementById('bofqi').appendChild(div));
 	}else  if(
 		location.href.match("v.youku.com")||location.href.match("tudou.com")){
 		document.getElementById('player').innerHTML='';
-		document.getElementById('player').appendChild(div);
+		console.log(document.getElementById('player').appendChild(div));
 	}else {
 		document.body.appendChild(div);
 	};
 	document.body.appendChild(div);
 	resize();
 	window.addEventListener('resize', resize);
+	video.addEventListener('resize', resize);
 	return self;
 }
 
