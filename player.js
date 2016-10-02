@@ -15,25 +15,21 @@ module.exports = () => {
 		</svg>
 	`;
 	toolbar.style.display = 'none';
-	document.body.style.background = '#000';
 
 	div.appendChild(toolbar);
 	div.appendChild(video);
 	div.appendChild(damoo);
 
-	div.style.background = '#000';
-	div.style.position = 'fixed';
 	div.style.top = '0px';
 	div.style.left = '0px';
 	div.style.zIndex = '1000000';
 
 	damoo.style.position = 'absolute';
 	damoo.style.pointerEvents = 'none';
-	damoo.style.overflow = 'hidden';
+	damoo.style.top = '0px';
+	damoo.style.left = '0px';
 
-	video.autoplay = true;
 	video.controls = true;
-	video.style.position = 'absolute';
 	video.style.display = 'none';
 	video.volume = localStorage.getItem('mama-hd-volume') || 0.5;
 	video.onvolumechange = function() {
@@ -63,38 +59,25 @@ module.exports = () => {
 	}, () => {
 		div.style.cursor = 'none';
 		toolbar.style.display = 'none';
-	}, 5000));
+	}, 500));
 
 	let self = {
 		video, damoo, div,
 		onStarted:[], onSuspend:[], onResume:[],
-		damooEnabled:false,
+		damooEnabled:true,
 		damooOpacity:1.0,
 		onDamooOptsChange:[],
 	};
 
 	let resize = () => {
-		let windowRatio = window.innerHeight/window.innerWidth;
-		let videoRatio = video.videoHeight/video.videoWidth;
-		if (videoRatio > windowRatio) {
-			let width = window.innerHeight/videoRatio;
-			video.style.height = window.innerHeight+'px';
-			video.style.width = width+'px';
-			video.style.left = (window.innerWidth-width)/2+'px';
-			video.style.top = '0px';
-		} else {
-			let height = window.innerWidth*videoRatio;
-			video.style.width = window.innerWidth+'px';
-			video.style.height = height+'px';
-			video.style.top = (window.innerHeight-height)/2+'px';
-			video.style.left = '0px';
-		}
+		video.style.height = '100%';
+		video.style.width = '100%';
 		damoo.style.width = video.style.width;
 		damoo.style.height = video.style.height;
 		damoo.style.top = video.style.top;
 		damoo.style.left = video.style.left;
-		div.style.height = window.innerHeight+'px';
-		div.style.width = window.innerWidth+'px';
+		damoo.style.top = '0px';
+		damoo.style.left = '0px';
 	}
 
 	let onStarted = () => {
@@ -279,11 +262,19 @@ module.exports = () => {
 
 	});
 
-	document.body.style.margin = 0;
+	if(location.href.match("bilibili.com/video")){
+		document.getElementById('bofqi').innerHTML='';
+		document.getElementById('bofqi').appendChild(div);
+	}else  if(
+		location.href.match("v.youku.com")||location.href.match("tudou.com")){
+		document.getElementById('player').innerHTML='';
+		document.getElementById('player').appendChild(div);
+	}else {
+		document.body.appendChild(div);
+	};
 	document.body.appendChild(div);
 	resize();
 	window.addEventListener('resize', resize);
-
 	return self;
 }
 
