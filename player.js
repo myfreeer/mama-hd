@@ -35,6 +35,10 @@ module.exports = () => {
 	video.controls = true;
 	video.style.position = 'absolute';
 	video.style.display = 'none';
+	video.volume = localStorage.getItem('mama-hd-volume') || 0.5;
+	video.onvolumechange = function() {
+	    localStorage.setItem('mama-hd-volume', video.volume)
+	};
 
 	function debounce(start, end, interval) {
 		var timer;
