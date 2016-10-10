@@ -225,10 +225,16 @@ class Streams {
 					}
 				}
 				xhr.onerror = () => {
-					setTimeout(() => request(i), 2000);
+					xhr.abort();
+					setTimeout(() => request(i), 500);
+				}
+				xhr.ontimeout = xhr.onerror;
+				xhr.onreadystatechange = () => {
+					if (xhr.getResponseHeader('Content-Length') > end - start +1000) xhr.onerror();
 				}
 
 				xhr.onload = () => {
+					if (xhr.response.byteLength < end - start && i+1 <= ranges.length) xhr.onerror();
 					let segbuf = new Uint8Array(xhr.response);
 					let cputimeStart = new Date().getTime();
 					let buf = this.transcodeMediaSegments(segbuf, range);
