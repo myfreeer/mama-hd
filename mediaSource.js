@@ -244,6 +244,7 @@ class Streams {
 				}
 
 				xhr.onload = () => {
+					xhrTimeout = firstxhrTimeout
 					if (xhr.response.byteLength < end - start && i+1 <= ranges.length) xhr.onerror();
 					let segbuf = new Uint8Array(xhr.response);
 					let cputimeStart = new Date().getTime();
