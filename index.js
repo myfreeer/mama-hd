@@ -28,7 +28,7 @@
 let localhost = 'http://localhost:6060/'
 
 let mediaSource = require('./mediaSource');
-let Nanobar = require('nanobar');
+let Nanobar = require('./nanobar');
 let bilibili = require('./bilibili');
 let youku = require('./youku');
 let tudou = require('./tudou');

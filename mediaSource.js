@@ -11,6 +11,9 @@
 let flvdemux = require('./flvdemux')
 let mp4mux = require('./mp4mux')
 let fetch = require('./http').fetch;
+const cacheTimeLength = 360;
+let xhrTimeout = 1500;
+const firstxhrTimeout = xhrTimeout;
 
 let app = {}
 
@@ -64,7 +67,7 @@ class Streams {
 				}
 			});
 		}
-		return fetch(url, {headers: {Range: 'bytes=0-5000000'}, retries: 1024}).then(res => {
+		return fetch(url, {headers: {Range: 'bytes=0-5000000'}, retries: 128}).then(res => {
 			return pump(res.body.getReader())
 		});
 	}
@@ -205,6 +208,7 @@ class Streams {
 				let range = ranges[i];
 				let {url,start,end} = range;
 				dbp('fetch:', `bytes=[${start},${end}]`);
+				if (start == end) throw new Error('EOF');
 				xhr = new XMLHttpRequest();
 				xhr.open('GET', url);
 				xhr.responseType = 'arraybuffer';
@@ -225,10 +229,22 @@ class Streams {
 					}
 				}
 				xhr.onerror = () => {
-					setTimeout(() => request(i), 2000);
+					xhr.abort();
+					xhrTimeout = firstxhrTimeout + 3500;
+					xhr.timeout = xhrTimeout;
+					setTimeout(() => request(i), 150);
+				}
+				xhr.ontimeout = xhr.onerror;
+				xhr.timeout = xhrTimeout;
+				
+				xhr.onreadystatechange = () => {
+					//32768 = 256 / 8 * 1024 ,simulating a 256kbps network (hardly to find a network slower than this)
+					if (xhr.readyState == 3) xhr.timeout = xhrTimeout + (end - start) / 32768 + 1000;
+					if (xhr.getResponseHeader('Content-Length') > end - start + 1000) xhr.onerror();
 				}
 
 				xhr.onload = () => {
+					if (xhr.response.byteLength < end - start && i+1 <= ranges.length) xhr.onerror();
 					let segbuf = new Uint8Array(xhr.response);
 					let cputimeStart = new Date().getTime();
 					let buf = this.transcodeMediaSegments(segbuf, range);
@@ -489,7 +505,7 @@ app.bindVideo = (opts) => {
 				time = 0;
 			}
 
-			if (time < video.currentTime + 60.0)
+			if (time < video.currentTime + cacheTimeLength +1 && time < video.duration)
 				fetchAndAppend(time, duration);
 		}
 
@@ -549,8 +565,9 @@ app.bindVideo = (opts) => {
 		sourceBuffer = mediaSource.addSourceBuffer(codecType);
 		self.sourceBuffer = sourceBuffer;
 
-		sourceBuffer.addEventListener('error', () => dbp('sourceBuffer: error'));
+		sourceBuffer.addEventListener('error', (e) => {dbp('sourceBuffer: error', e);clearInterval(interval)});
 		sourceBuffer.addEventListener('abort', () => dbp('sourceBuffer: abort'));
+		let interval;
 		sourceBuffer.addEventListener('updateend', () => {
 			//dbp('sourceBuffer: updateend')
 			sourceBufferOnUpdateend();
@@ -579,7 +596,7 @@ app.bindVideo = (opts) => {
 
 		video.addEventListener('loadedmetadata', () => {
 			tryPrefetch(5.0);
-			setInterval(() => {
+			interval = setInterval(() => {
 				tryPrefetch();
 			}, 1500);
 		});

@@ -1,5 +1,5 @@
 
-var md5 = require('blueimp-md5');
+var md5 = require('./blueimp-md5');
 const SECRETKEY_MINILOADER = '1c15888dc316e05a15fdd0a02ed6584f';
 let interfaceUrl = (cid, ts) => `cid=${cid}&player=1&ts=${ts}`;
 let calcSign = (cid, ts) => md5(`${interfaceUrl(cid,ts)}${SECRETKEY_MINILOADER}`);
