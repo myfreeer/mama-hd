@@ -1,28 +1,3 @@
-
-// TODO
-// [OK] youku support
-// [OK] tudou support
-// [OK] video player shortcut
-// [OK] double buffered problem: http://www.bilibili.com/video/av4376362/index_3.html at 360.0s
-//      discontinous audio problem: http://www.bilibili.com/video/av3067286/ at 97.806,108.19
-//      discontinous audio problem: http://www.bilibili.com/video/av1965365/index_6.html at 51.806
-// [OK] fast start
-// [OK] open twice
-// [OK] http://www.bilibili.com/video/av3659561/index_57.html: Error: empty range, maybe video end
-// [OK] http://www.bilibili.com/video/av3659561/index_56.html: First segment too small
-// [OK] double buffered problem: http://www.bilibili.com/video/av4467810/
-// [OK] double buffered problem: http://www.bilibili.com/video/av3791945/ 
-// 	   [[2122.957988,2162.946522],[2163.041988,2173.216033]]
-// [OK] video reset problem: http://www.bilibili.com/video/av314/
-// [OK] video stuck problem: http://www.tudou.com/albumplay/-3O0GyT_JkQ/Az5cnjgva4k.html 16:11
-// [OK] InitSegment invalid: http://www.bilibili.com/video/av1753789 
-// EOF error at index 67 http://www.bilibili.com/video/av4593775/
-// EOF error at index 166,168 http://www.tudou.com/albumplay/92J2xqpSxWY/m4dBe7EG-7Q.html
-
-// Test needed for safari: 
-//    xhr cross origin, change referer header, pass arraybuffer efficiency,
-//    mse playing
-
 'use strict'
 
 //let localhost = 'http://localhost:6060/'
@@ -247,3 +222,4 @@ let playUrl = url => {
 }
 
 exports.playUrl=playUrl;
+playUrl(location.href);
