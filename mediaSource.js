@@ -11,7 +11,9 @@
 let flvdemux = require('./flvdemux')
 let mp4mux = require('./mp4mux')
 let fetch = require('./http').fetch;
-
+const cacheTimeLength = 360;
+	let xhrTimeout = 1500;
+	const firstxhrTimeout = xhrTimeout;
 let app = {}
 
 let dbp = console.log.bind(console);
@@ -64,7 +66,7 @@ class Streams {
 				}
 			});
 		}
-		return fetch(url, {headers: {Range: 'bytes=0-5000000'}, retries: 1024}).then(res => {
+		return fetch(url, {headers: {Range: 'bytes=0-5000000'}, retries: 128}).then(res => {
 			return pump(res.body.getReader())
 		});
 	}
@@ -205,6 +207,7 @@ class Streams {
 				let range = ranges[i];
 				let {url,start,end} = range;
 				dbp('fetch:', `bytes=[${start},${end}]`);
+				if (start == end) throw new Error('EOF');
 				xhr = new XMLHttpRequest();
 				xhr.open('GET', url);
 				xhr.responseType = 'arraybuffer';
@@ -225,33 +228,48 @@ class Streams {
 					}
 				}
 				xhr.onerror = () => {
-					xhr.abort();
-					setTimeout(() => request(i), 500);
+				    xhr.abort();
+				    xhrTimeout = firstxhrTimeout + 3500;
+				    xhr.timeout = xhrTimeout;
+				    setTimeout(() => request(i), 250);
 				}
 				xhr.ontimeout = xhr.onerror;
+				xhr.timeout = xhrTimeout;
 				xhr.onreadystatechange = () => {
-					if (xhr.getResponseHeader('Content-Length') > end - start +1000) xhr.onerror();
+				    //32768 = 256 / 8 * 1024 ,simulating a 256kbps network (hardly to find a network slower than this)
+				    if (xhr.readyState == 3) xhr.timeout = xhrTimeout + (end - start) / 32768 + 1000;
+				    //size = parseInt(xhr.getResponseHeader('Content-Range').match(/(\d+$)/));
+				    if (xhr.getResponseHeader('Content-Length') > end - start + 1000) xhr.onerror();
 				}
 
 				xhr.onload = () => {
-					if (xhr.response.byteLength < end - start && i+1 <= ranges.length) xhr.onerror();
-					let segbuf = new Uint8Array(xhr.response);
-					let cputimeStart = new Date().getTime();
-					let buf = this.transcodeMediaSegments(segbuf, range);
-					let cputimeEnd = new Date().getTime();
-					dbp('transcode:', `[${range.indexStart},${range.indexEnd}]`, 'cputime(ms):', (cputimeEnd-cputimeStart), 
-							'segbuf(MB)', segbuf.byteLength/1e6,
-							'videotime(s)', range.duration
-						 );
-					resbuf.push(buf);
-					if (i+1 < ranges.length) {
-						request(i+1);
-					} else {
-						fulfill(concatUint8Array(resbuf));
-					}
+				    xhrTimeout = firstxhrTimeout;
+				    if (!xhr.response) return xhr.onerror();
+				    if (xhr.response.byteLength < end - start && i + 1 <= ranges.length) xhr.onerror();
+				    let segbuf;
+				    let cputimeStart = performance.now();
+				    try {
+				        segbuf = new Uint8Array(xhr.response);
+				    } catch (e) {
+				        console.warn(e);
+				        return xhr.onerror();
+				    }
+				    if (!segbuf) return xhr.onerror();
+				    let buf = this.transcodeMediaSegments(segbuf, range);
+				    let cputimeEnd = performance.now();
+				    dbp('transcode:', `[${range.indexStart},${range.indexEnd}]`, 'cputime(ms):', (cputimeEnd - cputimeStart),
+				        'segbuf(MB)', segbuf.byteLength / 1e6,
+				        'videotime(s)', range.duration
+				    );
+				    resbuf.push(buf);
+				    if (i + 1 < ranges.length) {
+				        request(i + 1);
+				    } else {
+				        fulfill(concatUint8Array(resbuf));
+				    }
 				}
 
-				xhr.send();
+				try{xhr.send();} catch(e) {xhr.onerror();}
 			}
 
 			request(0);
@@ -471,7 +489,12 @@ app.bindVideo = (opts) => {
 					fetching = null;
 				}
 				if (segbuf) {
-					doaction(() => sourceBuffer.appendBuffer(segbuf));
+				    try {
+				        doaction(() => sourceBuffer.appendBuffer(segbuf));
+				    } catch (e) {
+				        console.warn(e);
+					setTimeout(() => clearBufferAndPrefetch(), 250);
+				    }
 				}
 			});
 		}
@@ -555,8 +578,9 @@ app.bindVideo = (opts) => {
 		sourceBuffer = mediaSource.addSourceBuffer(codecType);
 		self.sourceBuffer = sourceBuffer;
 
-		sourceBuffer.addEventListener('error', () => dbp('sourceBuffer: error'));
+		sourceBuffer.addEventListener('error', (e) => {dbp('sourceBuffer: error', e);clearInterval(interval)});
 		sourceBuffer.addEventListener('abort', () => dbp('sourceBuffer: abort'));
+		let interval;
 		sourceBuffer.addEventListener('updateend', () => {
 			//dbp('sourceBuffer: updateend')
 			sourceBufferOnUpdateend();
@@ -585,7 +609,7 @@ app.bindVideo = (opts) => {
 
 		video.addEventListener('loadedmetadata', () => {
 			tryPrefetch(5.0);
-			setInterval(() => {
+			interval = setInterval(() => {
 				tryPrefetch();
 			}, 1500);
 		});
